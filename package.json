@@ -1,13 +1,14 @@
 {
- "name": "garmin-sync",
- "version": "1.0.0",
- "private": true,
- "scripts": {
-  "dev": "concurrently \"next dev\" \"node sync-server.js\"",
-  "build": "next build",
-  "start": "concurrently \"next start\" \"node sync-server.js\"",
-  "lint": "next lint"
- },
+  "name": "garmin-sync",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "sync_cn": "node scripts/sync_cn.js",
+    "sync_global": "node scripts/sync_global.js"
+  },
  "keywords": [],
  "author": "",
  "license": "ISC",
@@ -26,7 +27,9 @@
   "react": "^19.0.0",
   "react-dom": "^19.0.0",
   "tailwind-merge": "^2.6.0",
-  "tailwindcss": "^3.4.17"
+  "dayjs": "^1.11.7",
+  "tailwindcss": "^3.4.17",
+  "cross-env": "^7.0.3"
  },
  "devDependencies": {
   "autoprefixer": "^10.4.20",

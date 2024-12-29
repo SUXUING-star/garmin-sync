@@ -1,0 +1,6 @@
+[submodule "dailysync"]
+	path = dailysync
+	url = https://gitlab.com/gooin/dailysync.git
+[submodule "lib/dailysync"]
+	path = lib/dailysync
+	url = https://gitlab.com/gooin/dailysync.git

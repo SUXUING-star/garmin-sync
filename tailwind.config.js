@@ -2,9 +2,11 @@
 module.exports = {
   darkMode: ["class"],
   content: [
-    './pages/**/*.{js,jsx}',
-    './components/**/*.{js,jsx}',
-    './lib/**/*.{js,jsx}',
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    // 只包含我们自己的库代码，排除 node_modules
+    './lib/garmin/**/*.{js,ts,jsx,tsx}'
   ],
   theme: {
     container: {
