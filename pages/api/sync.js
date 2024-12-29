@@ -1,72 +1,136 @@
-// pages/api/sync.js
-import GarminSync from '../../lib/garmin/sync';
+// lib/garmin/sync.js
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+const execAsync = promisify(exec);
+
+export default class GarminSync {
+  constructor(config) {
+    this.cnUsername = config.cnUsername;
+    this.cnPassword = config.cnPassword;
+    this.globalUsername = config.globalUsername;
+    this.globalPassword = config.globalPassword;
   }
 
-  console.log('Received sync request');
+  async setupConfig() {
+    // 获取 dailysync 项目路径
+    const dailysyncPath = path.join(process.cwd(), 'lib', 'dailysync');
+    const configPath = path.join(dailysyncPath, 'src', 'constant.ts');
 
-  try {
-    const { direction } = req.body;
-    console.log(`Starting sync (${direction})`);
+    // 创建配置文件内容
+    const configContent = `
+// 中国区账号
+export const GARMIN_USERNAME_DEFAULT = '${this.cnUsername}';
+export const GARMIN_PASSWORD_DEFAULT = '${this.cnPassword}';
 
-    // 验证环境变量
-    if (!process.env.GARMIN_CN_EMAIL || !process.env.GARMIN_CN_PWD || 
-        !process.env.GARMIN_GLOBAL_EMAIL || !process.env.GARMIN_GLOBAL_PWD) {
-      throw new Error('缺少必要的环境变量配置');
-    }
+// 国际区账号
+export const GARMIN_GLOBAL_USERNAME_DEFAULT = '${this.globalUsername}';
+export const GARMIN_GLOBAL_PASSWORD_DEFAULT = '${this.globalPassword}';
 
-    const sync = new GarminSync({
-      cnUsername: process.env.GARMIN_CN_EMAIL,
-      cnPassword: process.env.GARMIN_CN_PWD,
-      globalUsername: process.env.GARMIN_GLOBAL_EMAIL,
-      globalPassword: process.env.GARMIN_GLOBAL_PWD
-    });
+// 佳明迁移数量配置
+export const GARMIN_MIGRATE_NUM_DEFAULT = 10;
+export const GARMIN_MIGRATE_START_DEFAULT = 0;
+    `.trim();
 
-    // 记录开始时间
-    const startTime = new Date();
-    console.log('开始同步过程');
+    // 写入配置文件
+    await fs.promises.writeFile(configPath, configContent, 'utf8');
+  }
 
-    let result;
-    let syncLog = [];
+  async syncCNToGlobal() {
+    console.log('Starting CN to Global sync');
+    
+    try {
+      await this.setupConfig();
+      
+      const dailysyncPath = path.join(process.cwd(), 'lib', 'dailysync');
+      const command = `cd ${dailysyncPath} && npx ts-node src/sync_garmin_cn_to_global.ts`;
+      
+      console.log('Executing command:', command);
+      
+      const { stdout, stderr } = await execAsync(command, {
+        env: {
+          ...process.env,
+          PATH: `${process.env.PATH}:${path.join(process.cwd(), 'node_modules', '.bin')}`
+        }
+      });
 
-    // 执行同步并记录日志
-    if (direction === 'cn_to_global') {
-      syncLog.push('正在从中国区同步到国际区...');
-      result = await sync.syncCNToGlobal();
-      syncLog.push('中国区到国际区同步完成');
-    } else {
-      syncLog.push('正在从国际区同步到中国区...');
-      result = await sync.syncGlobalToCN();
-      syncLog.push('国际区到中国区同步完成');
-    }
-
-    // 计算同步用时
-    const endTime = new Date();
-    const duration = Math.round((endTime - startTime) / 1000);
-
-    console.log('Sync completed:', result);
-
-    res.status(200).json({
-      success: true,
-      message: '同步成功',
-      details: {
-        direction: direction,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        duration: `${duration}秒`,
-        syncLog: syncLog,
-        ...result
+      if (stderr) {
+        console.error('Sync stderr:', stderr);
+        if (!stdout.includes('Successfully synced')) {
+          throw new Error(stderr);
+        }
       }
-    });
-  } catch (error) {
-    console.error('Sync error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message || '同步失败',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+
+      // 解析同步结果
+      const activities = this.parseActivities(stdout);
+
+      return {
+        status: 'success',
+        activitiesCount: activities.length,
+        activities: activities,
+        rawOutput: stdout
+      };
+    } catch (error) {
+      console.error('Sync error:', error);
+      throw new Error(`同步失败: ${error.message}`);
+    }
+  }
+
+  async syncGlobalToCN() {
+    console.log('Starting Global to CN sync');
+    
+    try {
+      await this.setupConfig();
+      
+      const dailysyncPath = path.join(process.cwd(), 'lib', 'dailysync');
+      const command = `cd ${dailysyncPath} && npx ts-node src/sync_garmin_global_to_cn.ts`;
+      
+      console.log('Executing command:', command);
+      
+      const { stdout, stderr } = await execAsync(command, {
+        env: {
+          ...process.env,
+          PATH: `${process.env.PATH}:${path.join(process.cwd(), 'node_modules', '.bin')}`
+        }
+      });
+
+      if (stderr) {
+        console.error('Sync stderr:', stderr);
+        if (!stdout.includes('Successfully synced')) {
+          throw new Error(stderr);
+        }
+      }
+
+      // 解析同步结果
+      const activities = this.parseActivities(stdout);
+
+      return {
+        status: 'success',
+        activitiesCount: activities.length,
+        activities: activities,
+        rawOutput: stdout
+      };
+    } catch (error) {
+      console.error('Sync error:', error);
+      throw new Error(`同步失败: ${error.message}`);
+    }
+  }
+
+  parseActivities(output) {
+    const activities = [];
+    const lines = output.split('\n');
+    
+    for (const line of lines) {
+      if (line.includes('Syncing activity')) {
+        const match = line.match(/Syncing activity: (.*)/);
+        if (match) {
+          activities.push(match[1]);
+        }
+      }
+    }
+    
+    return activities;
   }
 }
