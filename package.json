@@ -6,8 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "sync_cn": "node scripts/sync_cn.js",
-    "sync_global": "node scripts/sync_global.js"
+    "sync_cn": "ts-node ./scripts/sync_cn.ts",
+    "sync_global": "ts-node ./scripts/sync_global.ts"
   },
  "keywords": [],
  "author": "",
