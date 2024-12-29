@@ -1,4 +1,5 @@
 // pages/api/sync.js
+import GarminSync from '../../lib/garmin/sync';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,31 +8,27 @@ export default async function handler(req, res) {
 
   try {
     const { direction } = req.body;
-    
-    // 打印接收到的请求数据
-    console.log('Received sync request:', { direction });
 
-    // 模拟同步操作（测试用）
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // 返回成功响应
-    res.status(200).json({ 
-      success: true, 
-      message: `Successfully synced ${direction}`,
-      timestamp: new Date().toISOString()
+    const sync = new GarminSync({
+      cnUsername: process.env.GARMIN_CN_EMAIL,
+      cnPassword: process.env.GARMIN_CN_PWD,
+      globalUsername: process.env.GARMIN_GLOBAL_EMAIL,
+      globalPassword: process.env.GARMIN_GLOBAL_PWD
     });
 
+    let result;
+    if (direction === 'cn_to_global') {
+      result = await sync.syncCNToGlobal();
+    } else {
+      result = await sync.syncGlobalToCN();
+    }
+
+    res.status(200).json(result);
   } catch (error) {
-    // 详细的错误日志
-    console.error('Sync error:', {
-      message: error.message,
-      stack: error.stack,
-    });
-
+    console.error('Sync error:', error);
     res.status(500).json({ 
-      error: 'Sync failed', 
-      details: error.message,
-      timestamp: new Date().toISOString()
+      success: false, 
+      error: error.message 
     });
   }
 }
