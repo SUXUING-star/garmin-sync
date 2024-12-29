@@ -1,11 +1,4 @@
 // pages/api/sync.js
-import { Garmin } from '../../lib/garmin';
-
-export const config = {
-  api: {
-    bodyParser: true,
-  },
-};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,35 +7,31 @@ export default async function handler(req, res) {
 
   try {
     const { direction } = req.body;
+    
+    // 打印接收到的请求数据
+    console.log('Received sync request:', { direction });
 
-    // 获取环境变量中的账号信息
-    const CN_EMAIL = process.env.GARMIN_CN_EMAIL;
-    const CN_PWD = process.env.GARMIN_CN_PWD;
-    const GLOBAL_EMAIL = process.env.GARMIN_GLOBAL_EMAIL;
-    const GLOBAL_PWD = process.env.GARMIN_GLOBAL_PWD;
+    // 模拟同步操作（测试用）
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    if (!CN_EMAIL || !CN_PWD || !GLOBAL_EMAIL || !GLOBAL_PWD) {
-      throw new Error('Missing Garmin credentials');
-    }
-
-    const garmin = new Garmin({
-      cnEmail: CN_EMAIL,
-      cnPassword: CN_PWD,
-      globalEmail: GLOBAL_EMAIL,
-      globalPassword: GLOBAL_PWD,
+    // 返回成功响应
+    res.status(200).json({ 
+      success: true, 
+      message: `Successfully synced ${direction}`,
+      timestamp: new Date().toISOString()
     });
 
-    // 执行同步
-    let result;
-    if (direction === 'cn_to_global') {
-      result = await garmin.syncCNToGlobal();
-    } else {
-      result = await garmin.syncGlobalToCN();
-    }
-
-    res.status(200).json({ success: true, result });
   } catch (error) {
-    console.error('Sync error:', error);
-    res.status(500).json({ error: error.message });
+    // 详细的错误日志
+    console.error('Sync error:', {
+      message: error.message,
+      stack: error.stack,
+    });
+
+    res.status(500).json({ 
+      error: 'Sync failed', 
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 }

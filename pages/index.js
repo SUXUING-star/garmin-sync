@@ -13,6 +13,8 @@ export default function Home() {
   const handleSync = async () => {
     setIsSyncing(true);
     setStatus({ type: 'info', message: '同步中...' });
+    const startTime = new Date().toLocaleString();
+    setLogs(prev => [`${startTime} - 开始同步...`, ...prev]);
     
     try {
       const response = await fetch('/api/sync', {
@@ -23,17 +25,20 @@ export default function Home() {
         body: JSON.stringify({ direction: syncDirection })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setStatus({ type: 'success', message: '同步完成' });
-        setLastSync(new Date().toLocaleString());
-        setLogs(prev => [`${new Date().toLocaleString()} - 同步完成`, ...prev]);
-      } else {
-        throw new Error('同步失败');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.details || '同步失败');
       }
+
+      setStatus({ type: 'success', message: '同步完成' });
+      setLastSync(new Date().toLocaleString());
+      setLogs(prev => [`${new Date().toLocaleString()} - 同步完成`, ...prev]);
     } catch (error) {
-      setStatus({ type: 'error', message: `同步失败: ${error.message}` });
-      setLogs(prev => [`${new Date().toLocaleString()} - 错误: ${error.message}`, ...prev]);
+      console.error('Sync error:', error);
+      const errorMessage = error.message || '同步失败，请稍后重试';
+      setStatus({ type: 'error', message: `同步失败: ${errorMessage}` });
+      setLogs(prev => [`${new Date().toLocaleString()} - 错误: ${errorMessage}`, ...prev]);
     } finally {
       setIsSyncing(false);
     }
