@@ -33,6 +33,7 @@ export default function Home() {
       }
     } catch (error) {
       setStatus({ type: 'error', message: `同步失败: ${error.message}` });
+      setLogs(prev => [`${new Date().toLocaleString()} - 错误: ${error.message}`, ...prev]);
     } finally {
       setIsSyncing(false);
     }
