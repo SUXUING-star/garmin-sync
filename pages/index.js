@@ -25,15 +25,29 @@ export default function Home() {
         body: JSON.stringify({ direction: syncDirection })
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.details || '同步失败');
+        throw new Error('同步请求失败');
+      }
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || '同步返回失败状态');
+      }
+
+      // 添加同步详情到日志
+      if (data.details) {
+        setLogs(prev => [
+          `${new Date().toLocaleString()} - 同步成功:`,
+          `  - 方向: ${data.details.direction}`,
+          `  - 用时: ${data.details.duration}`,
+          `  - 活动数量: ${data.details.activitiesCount || 0}`,
+          ...prev
+        ]);
       }
 
       setStatus({ type: 'success', message: '同步完成' });
       setLastSync(new Date().toLocaleString());
-      setLogs(prev => [`${new Date().toLocaleString()} - 同步完成`, ...prev]);
     } catch (error) {
       console.error('Sync error:', error);
       const errorMessage = error.message || '同步失败，请稍后重试';
@@ -108,7 +122,7 @@ export default function Home() {
           {/* 同步日志 */}
           <div className="mt-6">
             <h3 className="text-sm font-medium mb-2">同步日志</h3>
-            <div className="bg-gray-50 rounded-lg p-3 h-32 overflow-y-auto">
+            <div className="bg-gray-50 rounded-lg p-3 h-48 overflow-y-auto">
               {logs.map((log, index) => (
                 <div key={index} className="text-sm text-gray-600 mb-1">
                   {log}

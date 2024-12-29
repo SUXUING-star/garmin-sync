@@ -10,12 +10,11 @@ export default async function handler(req, res) {
 
   try {
     const { direction } = req.body;
-    console.log('Sync direction:', direction);
+    console.log(`Starting sync (${direction})`);
 
     // 验证环境变量
     if (!process.env.GARMIN_CN_EMAIL || !process.env.GARMIN_CN_PWD || 
         !process.env.GARMIN_GLOBAL_EMAIL || !process.env.GARMIN_GLOBAL_PWD) {
-      console.error('Missing environment variables');
       throw new Error('缺少必要的环境变量配置');
     }
 
@@ -26,21 +25,41 @@ export default async function handler(req, res) {
       globalPassword: process.env.GARMIN_GLOBAL_PWD
     });
 
-    console.log('Starting sync process');
+    // 记录开始时间
+    const startTime = new Date();
+    console.log('开始同步过程');
 
     let result;
+    let syncLog = [];
+
+    // 执行同步并记录日志
     if (direction === 'cn_to_global') {
+      syncLog.push('正在从中国区同步到国际区...');
       result = await sync.syncCNToGlobal();
-    } else if (direction === 'global_to_cn') {
-      result = await sync.syncGlobalToCN();
+      syncLog.push('中国区到国际区同步完成');
     } else {
-      throw new Error('无效的同步方向');
+      syncLog.push('正在从国际区同步到中国区...');
+      result = await sync.syncGlobalToCN();
+      syncLog.push('国际区到中国区同步完成');
     }
 
-    console.log('Sync completed successfully:', result);
+    // 计算同步用时
+    const endTime = new Date();
+    const duration = Math.round((endTime - startTime) / 1000);
+
+    console.log('Sync completed:', result);
+
     res.status(200).json({
       success: true,
-      ...result
+      message: '同步成功',
+      details: {
+        direction: direction,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        duration: `${duration}秒`,
+        syncLog: syncLog,
+        ...result
+      }
     });
   } catch (error) {
     console.error('Sync error:', error);
