@@ -1,12 +1,29 @@
 {
     "installCommand": "npm install && cd lib/dailysync && npm install && cd ../..",
     "buildCommand": "npm run build",
-     "framework": null,
-      "functions": {
-          "api/**/*.js": {
-              "memory": 1024,
-               "maxDuration": 120
-             }
-        },
-      "outputDirectory": "."
- }
+    "framework": "nextjs",
+    "functions": {
+      "api/**/*.js": {
+        "memory": 1024,
+        "maxDuration": 120
+      }
+    },
+    "outputDirectory": ".next",
+    "env": {
+      "GARMIN_CN_EMAIL": "@garmin_cn_email",
+      "GARMIN_CN_PWD": "@garmin_cn_pwd",
+      "GARMIN_GLOBAL_EMAIL": "@garmin_global_email",
+      "GARMIN_GLOBAL_PWD": "@garmin_global_pwd"
+    },
+    "git": {
+      "deploymentEnabled": {
+        "master": true
+      }
+    },
+    "builds": [
+      {
+        "src": "package.json",
+        "use": "@vercel/next"
+      }
+    ]
+  }
