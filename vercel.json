@@ -3,9 +3,10 @@
     "buildCommand": "npm run build",
      "framework": null,
       "functions": {
-         "api/**/*.js": {
-          "memory": 1024,
-         "maxDuration": 120
-         }
-     }
+          "api/**/*.js": {
+              "memory": 1024,
+               "maxDuration": 120
+             }
+        },
+      "outputDirectory": "."
  }

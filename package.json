@@ -5,9 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "sync_cn": "ts-node ./scripts/sync_cn.ts",
-    "sync_global": "ts-node ./scripts/sync_global.ts"
+    "start": "next start"
   },
  "keywords": [],
  "author": "",
