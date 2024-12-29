@@ -1,6 +1,6 @@
 // pages/index.js
 import React from 'react';
-import { AlertCircle, ArrowLeftRight, Settings, Check, RefreshCw } from 'lucide-react';
+import { AlertCircle, ArrowLeftRight, Settings, Check, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 
 export default function Home() {
@@ -9,12 +9,16 @@ export default function Home() {
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [status, setStatus] = React.useState({ type: 'info', message: '准备就绪' });
   const [logs, setLogs] = React.useState([]);
+  const [errorDetails, setErrorDetails] = React.useState(null);
+  const [showErrorDetails, setShowErrorDetails] = React.useState(false);
 
   const handleSync = async () => {
     setIsSyncing(true);
     setStatus({ type: 'info', message: '同步中...' });
     const startTime = new Date().toLocaleString();
     setLogs(prev => [`${startTime} - 开始同步...`, ...prev]);
+    setErrorDetails(null);
+    setShowErrorDetails(false);
     
     try {
       const response = await fetch('/api/sync', {
@@ -25,37 +29,52 @@ export default function Home() {
         body: JSON.stringify({ direction: syncDirection })
       });
 
-      if (!response.ok) {
-        throw new Error('同步请求失败');
-      }
-
       const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || '同步返回失败状态');
+
+      if (!response.ok) {
+        throw new Error(data.error || '同步请求失败');
       }
 
-      // 添加同步详情到日志
-      if (data.details) {
-        setLogs(prev => [
-          `${new Date().toLocaleString()} - 同步成功:`,
-          `  - 方向: ${data.details.direction}`,
-          `  - 用时: ${data.details.duration}`,
-          `  - 活动数量: ${data.details.activitiesCount || 0}`,
-          ...prev
-        ]);
+      if (!data.success) {
+        const errorMsg = data.error || '同步返回失败状态';
+        setErrorDetails({
+          message: errorMsg,
+          details: data.details || {},
+          response: data,
+          timestamp: new Date().toISOString()
+        });
+        throw new Error(errorMsg);
       }
 
       setStatus({ type: 'success', message: '同步完成' });
       setLastSync(new Date().toLocaleString());
+      setLogs(prev => [
+        `${new Date().toLocaleString()} - 同步完成`,
+        `  方向: ${data.details?.direction || syncDirection}`,
+        data.details?.duration ? `  用时: ${data.details.duration}` : '',
+        data.details?.activitiesCount ? `  活动数: ${data.details.activitiesCount}` : '',
+        ...prev
+      ].filter(Boolean));
     } catch (error) {
       console.error('Sync error:', error);
       const errorMessage = error.message || '同步失败，请稍后重试';
       setStatus({ type: 'error', message: `同步失败: ${errorMessage}` });
       setLogs(prev => [`${new Date().toLocaleString()} - 错误: ${errorMessage}`, ...prev]);
+
+      if (!errorDetails) {
+        setErrorDetails({
+          message: errorMessage,
+          error: error,
+          timestamp: new Date().toISOString()
+        });
+      }
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const toggleErrorDetails = () => {
+    setShowErrorDetails(prev => !prev);
   };
 
   return (
@@ -112,6 +131,39 @@ export default function Home() {
             </Alert>
           </div>
 
+          {/* 错误详情 */}
+          {errorDetails && (
+            <div className="mt-4">
+              <button
+                onClick={toggleErrorDetails}
+                className="text-sm text-red-600 hover:text-red-700 flex items-center space-x-1"
+              >
+                {showErrorDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                <span>{showErrorDetails ? '收起错误详情' : '查看错误详情'}</span>
+              </button>
+              
+              {showErrorDetails && (
+                <div className="mt-2 p-3 bg-red-50 rounded-lg text-sm">
+                  <div className="text-red-700 font-medium">错误信息：</div>
+                  <div className="mt-1 text-red-600">{errorDetails.message}</div>
+                  
+                  {errorDetails.details && (
+                    <div className="mt-2">
+                      <div className="text-red-700 font-medium">详细信息：</div>
+                      <pre className="mt-1 text-red-600 text-xs overflow-x-auto">
+                        {JSON.stringify(errorDetails.details, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  
+                  <div className="mt-2 text-xs text-red-500">
+                    发生时间：{new Date(errorDetails.timestamp).toLocaleString()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 上次同步时间 */}
           {lastSync && (
             <div className="mt-4 text-sm text-gray-600">
@@ -122,9 +174,14 @@ export default function Home() {
           {/* 同步日志 */}
           <div className="mt-6">
             <h3 className="text-sm font-medium mb-2">同步日志</h3>
-            <div className="bg-gray-50 rounded-lg p-3 h-48 overflow-y-auto">
+            <div className="bg-gray-50 rounded-lg p-3 h-48 overflow-y-auto font-mono">
               {logs.map((log, index) => (
-                <div key={index} className="text-sm text-gray-600 mb-1">
+                <div 
+                  key={index} 
+                  className={`text-sm ${
+                    log.includes('错误') ? 'text-red-600' : 'text-gray-600'
+                  } mb-1`}
+                >
                   {log}
                 </div>
               ))}
